@@ -7,9 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.schema.js';
 import { DronesService } from '../drones/drones.service.js';
+import { DroneDto } from '../drones/dto/drone.dto.js';
 import type { Drone } from '../drones/types/drone.entity.js';
+import { DronesGateway } from '../realtime/drones.gateway.js';
 import { CoordinateGenerator } from './coordinate-generator.js';
-
 
 @Injectable()
 export class DroneSimulationService
@@ -26,6 +27,7 @@ export class DroneSimulationService
   constructor(
     private readonly coordinateGenerator: CoordinateGenerator,
     private readonly dronesService: DronesService,
+    private readonly dronesGateway: DronesGateway,
     config: ConfigService<Env, true>,
   ) {
     this.intervalMs = config.get('SIMULATION_INTERVAL_MS', { infer: true });
@@ -86,6 +88,7 @@ export class DroneSimulationService
       this.logger.debug(
         `Drone ${drone.id} created at (${drone.latitude}, ${drone.longitude})`,
       );
+      this.broadcast(drone);
     } catch (error) {
       this.logger.error(
         'Failed to create drone',
@@ -102,5 +105,16 @@ export class DroneSimulationService
   private createDrone(): Promise<Drone> {
     const coordinates = this.coordinateGenerator.generate();
     return this.dronesService.create(coordinates);
+  }
+
+  private broadcast(drone: Drone): void {
+    try {
+      this.dronesGateway.broadcastDroneCreated(DroneDto.fromEntity(drone));
+    } catch (error) {
+      this.logger.error(
+        `Drone ${drone.id} was saved but could not be broadcast`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 }

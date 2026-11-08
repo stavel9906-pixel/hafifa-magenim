@@ -3,7 +3,7 @@
 Status legend:
 - `[x]` done and verified · `[~]` implemented, not yet tested · `[ ]` pending · `[!]` blocked
 
-**Overall completion: ~35%** (Phases 0–3 complete; Phase 3 awaiting approval)
+**Overall completion: ~45%** (Phases 0–4 complete; Phase 4 awaiting approval)
 
 ---
 
@@ -202,7 +202,7 @@ Phase 2 notes:
 - Found during verification: a backend started with `npm run start` at 15:35 is still running the
   Phase 1 build on port 3001 (no `/api/drones`), and must be restarted to pick up Phase 2.
 
-### Phase 3 — Drone Generation ✅ (awaiting approval)
+### Phase 3 — Drone Generation ✅
 - [x] Israel land polygon (`src/simulation/geo/israel-land-area.ts`): outer ring (coast inset ~1 km,
       Egypt border, Gulf of Eilat, Arava, western Dead Sea shore, Jordan River, Lebanon border)
       with holes for Gaza, the West Bank and the Sea of Galilee (1949 armistice lines; Golan outside).
@@ -231,11 +231,29 @@ Phase 3 notes:
 - The dev database now contains 10 drones generated during the live check (kept as real history).
 - No `@nestjs/schedule`: a plain `setTimeout` chain gives the no-overlap guarantee directly.
 
-### Phase 4 — WebSocket
-- [ ] Socket.IO gateway, CORS from env
-- [ ] Broadcast `drone:created` after successful save
-- [ ] Connection/disconnection logging, error handling
-- [ ] Test with a Socket.IO client script / e2e test
+### Phase 4 — WebSocket ✅ (awaiting approval)
+- [x] Socket.IO via `@nestjs/platform-socket.io` 12 (socket.io 4.8); `DronesGateway` in
+      `src/realtime/`, event name `drone:created`, payload = `DroneDto` (same shape as REST)
+- [x] `CORS_ORIGINS` (comma-separated, validated URLs, default `http://localhost:5173`) applied to
+      both REST (`enableCors`) and Socket.IO (`SocketIoAdapter`)
+- [x] Broadcast only after a successful save; a failed save is not broadcast; a failed broadcast is
+      logged separately ("saved but could not be broadcast") and the loop continues
+- [x] Connection / disconnection logging with reason and client count; engine-level
+      `connection_error` logged. Dead connections detected by Socket.IO heartbeats (defaults).
+- [x] Unit tests: 83 pass (gateway, broadcast ordering and failure paths, CORS config)
+- [x] E2E: 11 pass — two real `socket.io-client` clients both receive the same drones, each already
+      persisted when received and returned by `GET /api/drones`; broadcasting continues after a
+      client disconnects; REST CORS header only for the configured origin
+- [x] Live (dev DB, port 3002): 2 clients; server killed unexpectedly → clients saw
+      `transport close`, retried with backoff, auto-reconnected to a new server and kept receiving.
+      Every drone created while clients were connected was received by both, once, in order;
+      the 2 drones created before connect / after exit were (correctly) not delivered by socket.
+
+Phase 4 notes:
+- Drones created while a client is offline are not replayed over the socket — by design. The
+  frontend (Phase 7) reloads `GET /api/drones` on connect/reconnect and merges by `id`.
+- Socket.IO does not reject WebSocket connections by origin (CORS is a browser rule for HTTP);
+  the origin list is enforced for browser polling/REST requests.
 
 ### Phase 5 — Frontend and Mantine
 - [ ] Mantine provider, theme, app layout

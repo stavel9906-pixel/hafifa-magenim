@@ -24,6 +24,30 @@ describe('envSchema', () => {
     },
   );
 
+  it('defaults CORS_ORIGINS to the Vite dev server', () => {
+    expect(envSchema.parse(validEnv).CORS_ORIGINS).toEqual([
+      'http://localhost:5173',
+    ]);
+  });
+
+  it('splits a comma-separated CORS_ORIGINS list and trims spaces', () => {
+    const env = envSchema.parse({
+      ...validEnv,
+      CORS_ORIGINS: 'http://localhost:5173, https://drones.example.com',
+    });
+
+    expect(env.CORS_ORIGINS).toEqual([
+      'http://localhost:5173',
+      'https://drones.example.com',
+    ]);
+  });
+
+  it.each(['not-a-url', ' , '])('rejects CORS_ORIGINS "%s"', (value) => {
+    expect(
+      envSchema.safeParse({ ...validEnv, CORS_ORIGINS: value }).success,
+    ).toBe(false);
+  });
+
   it('defaults the simulation to enabled, every 5 seconds', () => {
     const env = envSchema.parse(validEnv);
 

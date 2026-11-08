@@ -2,8 +2,10 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { DronesService } from '../drones/drones.service.js';
+import type { DroneDto } from '../drones/dto/drone.dto.js';
 import type { Coordinates } from '../drones/types/coordinates.js';
 import type { Drone } from '../drones/types/drone.entity.js';
+import { DronesGateway } from '../realtime/drones.gateway.js';
 import { CoordinateGenerator } from './coordinate-generator.js';
 import { DroneSimulationService } from './drone-simulation.service.js';
 
@@ -17,6 +19,7 @@ function droneFrom(coordinates: Coordinates): Drone {
 describe('DroneSimulationService', () => {
   const generate = vi.fn<() => Coordinates>();
   const create = vi.fn<(c: Coordinates) => Promise<Drone>>();
+  const broadcastDroneCreated = vi.fn<(drone: DroneDto) => void>();
   let service: DroneSimulationService;
 
   async function createService(
@@ -31,6 +34,7 @@ describe('DroneSimulationService', () => {
         DroneSimulationService,
         { provide: CoordinateGenerator, useValue: { generate } },
         { provide: DronesService, useValue: { create } },
+        { provide: DronesGateway, useValue: { broadcastDroneCreated } },
         {
           provide: ConfigService,
           useValue: { get: (key: keyof typeof settings) => settings[key] },
@@ -59,6 +63,62 @@ describe('DroneSimulationService', () => {
     await service.onModuleDestroy();
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it('broadcasts each drone as a DTO only after it is saved', async () => {
+    const order: string[] = [];
+    create.mockImplementation(async (c) => {
+      order.push('save');
+      return {
+        id: 'saved-id',
+        createdAt: new Date('2026-11-08T12:00:00.000Z'),
+        ...c,
+      };
+    });
+    broadcastDroneCreated.mockImplementation(() => order.push('broadcast'));
+
+    service.start();
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS);
+
+    expect(order).toEqual(['save', 'broadcast']);
+    expect(broadcastDroneCreated).toHaveBeenCalledWith({
+      id: 'saved-id',
+      latitude: COORDINATES.latitude,
+      longitude: COORDINATES.longitude,
+      createdAt: '2026-11-08T12:00:00.000Z',
+    });
+  });
+
+  it('does not broadcast when the save fails', async () => {
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    create.mockRejectedValueOnce(new Error('database unavailable'));
+
+    service.start();
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS);
+
+    expect(broadcastDroneCreated).not.toHaveBeenCalled();
+  });
+
+  it('logs a failed broadcast separately and keeps generating', async () => {
+    const error = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    broadcastDroneCreated.mockImplementationOnce(() => {
+      throw new Error('socket server down');
+    });
+
+    service.start();
+    await vi.advanceTimersByTimeAsync(INTERVAL_MS * 2);
+
+    expect(error).toHaveBeenCalledWith(
+      'Drone id was saved but could not be broadcast',
+      expect.stringContaining('socket server down'),
+    );
+    expect(error).not.toHaveBeenCalledWith(
+      'Failed to create drone',
+      expect.anything(),
+    );
+    expect(broadcastDroneCreated).toHaveBeenCalledTimes(2);
   });
 
   it('starts automatically on application bootstrap', () => {

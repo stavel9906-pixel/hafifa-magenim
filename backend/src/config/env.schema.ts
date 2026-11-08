@@ -11,6 +11,16 @@ export const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: port.default(3001),
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:5173')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.url()).min(1)),
 
   DB_HOST: z.string().min(1),
   DB_PORT: port.default(5432),
