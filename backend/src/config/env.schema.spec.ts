@@ -1,0 +1,32 @@
+import { envSchema } from './env.schema.js';
+
+const validEnv = {
+  DB_HOST: 'localhost',
+  DB_USERNAME: 'postgres',
+  DB_PASSWORD: 'secret',
+  DB_NAME: 'drone_simulation',
+};
+
+describe('envSchema', () => {
+  it('applies defaults and converts numeric strings to numbers', () => {
+    const env = envSchema.parse({ ...validEnv, DB_PORT: '5433' });
+
+    expect(env.PORT).toBe(3000);
+    expect(env.DB_PORT).toBe(5433);
+    expect(env.NODE_ENV).toBe('development');
+  });
+
+  it.each(['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_NAME'] as const)(
+    'rejects a missing %s',
+    (key) => {
+      const { [key]: _omitted, ...rest } = validEnv;
+      expect(envSchema.safeParse(rest).success).toBe(false);
+    },
+  );
+
+  it.each(['0', '70000', 'abc'])('rejects an invalid port "%s"', (port) => {
+    expect(envSchema.safeParse({ ...validEnv, PORT: port }).success).toBe(
+      false,
+    );
+  });
+});
