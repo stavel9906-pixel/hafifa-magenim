@@ -24,6 +24,38 @@ describe('envSchema', () => {
     },
   );
 
+  it('defaults the simulation to enabled, every 5 seconds', () => {
+    const env = envSchema.parse(validEnv);
+
+    expect(env.SIMULATION_ENABLED).toBe(true);
+    expect(env.SIMULATION_INTERVAL_MS).toBe(5000);
+  });
+
+  it.each([
+    ['false', false],
+    ['true', true],
+  ])('parses SIMULATION_ENABLED="%s" as %s', (value, expected) => {
+    const env = envSchema.parse({ ...validEnv, SIMULATION_ENABLED: value });
+
+    expect(env.SIMULATION_ENABLED).toBe(expected);
+  });
+
+  it.each(['yes-please', ''])(
+    'rejects an invalid SIMULATION_ENABLED "%s"',
+    (value) => {
+      expect(
+        envSchema.safeParse({ ...validEnv, SIMULATION_ENABLED: value }).success,
+      ).toBe(false);
+    },
+  );
+
+  it('rejects a simulation interval below 100 ms', () => {
+    expect(
+      envSchema.safeParse({ ...validEnv, SIMULATION_INTERVAL_MS: '50' })
+        .success,
+    ).toBe(false);
+  });
+
   it.each(['0', '70000', 'abc'])('rejects an invalid port "%s"', (port) => {
     expect(envSchema.safeParse({ ...validEnv, PORT: port }).success).toBe(
       false,

@@ -3,7 +3,7 @@
 Status legend:
 - `[x]` done and verified · `[~]` implemented, not yet tested · `[ ]` pending · `[!]` blocked
 
-**Overall completion: ~25%** (Phases 0–2 complete; Phase 2 awaiting approval)
+**Overall completion: ~35%** (Phases 0–3 complete; Phase 3 awaiting approval)
 
 ---
 
@@ -174,7 +174,7 @@ Phase 1 notes:
 - Added `tsx` (dev) to run TypeScript scripts in ESM; Phase 2's migration CLI uses it too.
 - Root `.gitattributes` (`eol=lf`) to stop CRLF/LF churn on Windows.
 
-### Phase 2 — Backend Architecture and Database ✅ (awaiting approval)
+### Phase 2 — Backend Architecture and Database ✅
 - [x] `Drone` entity → `drones` table: `id uuid` PK (`gen_random_uuid()`), `latitude`/`longitude`
       `double precision NOT NULL`, `created_at timestamptz NOT NULL DEFAULT now()`;
       `CHK_drones_latitude_range`, `CHK_drones_longitude_range`, index `IDX_drones_created_at`.
@@ -202,11 +202,34 @@ Phase 2 notes:
 - Found during verification: a backend started with `npm run start` at 15:35 is still running the
   Phase 1 build on port 3001 (no `/api/drones`), and must be restarted to pick up Phase 2.
 
-### Phase 3 — Drone Generation
-- [ ] Israel land polygon + point-in-polygon (unit tested)
-- [ ] `DroneGeneratorService`
-- [ ] `DroneSimulationService` loop (no overlap, single-start guard, graceful stop)
-- [ ] Verify a drone every ~5 s, persisted, survives restart
+### Phase 3 — Drone Generation ✅ (awaiting approval)
+- [x] Israel land polygon (`src/simulation/geo/israel-land-area.ts`): outer ring (coast inset ~1 km,
+      Egypt border, Gulf of Eilat, Arava, western Dead Sea shore, Jordan River, Lebanon border)
+      with holes for Gaza, the West Bank and the Sea of Galilee (1949 armistice lines; Golan outside).
+      23 tests: 10 known places inside, 13 outside (sea, Gaza, West Bank cities, lakes, Dead Sea,
+      Golan, Lebanon, Jordan, Sinai), all rings closed.
+- [x] Point-in-polygon (ray casting) with GeoJSON hole semantics — 12 tests incl. concave rings and
+      holes that extend past the outer ring.
+- [x] `CoordinateGenerator`: rejection sampling in the bounding box; injectable random source;
+      gives up after 1000 attempts instead of looping forever. 4 tests incl. 5,000 real samples all
+      inside the polygon.
+- [x] `DroneSimulationService`: starts on application bootstrap; `setTimeout` chain so ticks never
+      overlap; single-start guard; delay subtracts the tick duration (steady 5 s cadence); a failed
+      tick is logged and the loop continues; on shutdown waits for an in-flight save. 10 tests with
+      fake timers; mutation-checked (removing the duration subtraction or scheduling before the save
+      makes the matching test fail).
+- [x] Config: `SIMULATION_ENABLED` (default `true`), `SIMULATION_INTERVAL_MS` (default `5000`, min 100);
+      e2e tests run with the simulation disabled.
+- [x] Live verification (port 3002, no frontend, no HTTP requests): drones created every
+      4998–5013 ms, 10/10 unique UUIDs, 0 points outside the polygon; after stopping, no new rows;
+      after restarting (new PID) the earlier rows are still there and generation resumed.
+- Tests: 73 unit + 8 e2e pass; typecheck, lint, Prettier clean.
+- Not verified live: graceful shutdown via Ctrl+C (the live test killed the process). The shutdown
+  path (`onModuleDestroy` waits for the in-flight save) is covered by a unit test.
+
+Phase 3 notes:
+- The dev database now contains 10 drones generated during the live check (kept as real history).
+- No `@nestjs/schedule`: a plain `setTimeout` chain gives the no-overlap guarantee directly.
 
 ### Phase 4 — WebSocket
 - [ ] Socket.IO gateway, CORS from env

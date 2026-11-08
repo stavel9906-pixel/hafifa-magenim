@@ -5,6 +5,7 @@ import { buildDataSourceOptions } from './config/database.config.js';
 import { envSchema, type Env } from './config/env.schema.js';
 import { DronesModule } from './drones/drones.module.js';
 import { HealthModule } from './health/health.module.js';
+import { SimulationModule } from './simulation/simulation.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { HealthModule } from './health/health.module.js';
     }),
     HealthModule,
     DronesModule,
+    SimulationModule,
   ],
 })
 export class AppModule {}

@@ -17,6 +17,10 @@ export const envSchema = z.object({
   DB_USERNAME: z.string().min(1),
   DB_PASSWORD: z.string().min(1),
   DB_NAME: z.string().min(1),
+
+  /** Set to false to run the API without generating drones (e.g. in e2e tests). */
+  SIMULATION_ENABLED: z.stringbool().default(true),
+  SIMULATION_INTERVAL_MS: z.coerce.number().int().min(100).default(5000),
 });
 
 export type Env = z.infer<typeof envSchema>;
