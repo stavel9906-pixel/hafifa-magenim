@@ -1,24 +1,10 @@
 import type { Coordinates } from '../drones/types/coordinates.js';
-import {
-  boundingBoxOf,
-  isInsidePolygon,
-  type BoundingBox,
-  type Polygon,
-} from './geo/polygon.js';
+import type { BoundingBox, Polygon } from './geo/types/polygon.js';
+import { boundingBoxOf, isInsidePolygon } from './geo/utils/polygon.utils.js';
 
-/** Returns a number in [0, 1), like `Math.random`. */
 export type RandomSource = () => number;
 
-/**
- * Generates uniformly random coordinates inside a polygon using rejection
- * sampling: pick a random point in the polygon's bounding box and keep it
- * only if it falls inside the polygon.
- */
 export class CoordinateGenerator {
-  /**
-   * Israel fills roughly a third of its bounding box, so a valid point is
-   * found within a few attempts. The cap only guards against a broken polygon.
-   */
   static readonly MAX_ATTEMPTS = 1000;
 
   private readonly bounds: BoundingBox;

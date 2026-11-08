@@ -1,6 +1,7 @@
 import { CoordinateGenerator } from './coordinate-generator.js';
 import { ISRAEL_LAND_AREA } from './geo/israel-land-area.js';
-import { isInsidePolygon, type Polygon } from './geo/polygon.js';
+import type { Polygon } from './geo/types/polygon.js';
+import { isInsidePolygon } from './geo/utils/polygon.utils.js';
 
 // Unit square with the whole left half removed by a hole.
 const rightHalfOnly: Polygon = {

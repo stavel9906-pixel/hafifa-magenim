@@ -1,15 +1,4 @@
-import type { LinearRing, Polygon } from './polygon.js';
-
-/*
- * Simplified land area of Israel (1949 armistice lines), [longitude, latitude].
- * Accuracy is roughly ±1 km, which is plenty for a simulation.
- *
- * - The Mediterranean coastline is inset ~1 km so approximation errors never
- *   place a drone in the sea.
- * - The eastern edge follows the Jordan River and the western shore of the
- *   Dead Sea, so the Dead Sea itself is outside the area.
- * - Gaza, the West Bank and the Sea of Galilee are excluded as holes.
- */
+import type { LinearRing, Polygon } from './types/polygon.js';
 
 const OUTER: LinearRing = [
   // Mediterranean coast, north to south

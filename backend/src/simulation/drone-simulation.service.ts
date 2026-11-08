@@ -10,14 +10,7 @@ import { DronesService } from '../drones/drones.service.js';
 import type { Drone } from '../drones/types/drone.entity.js';
 import { CoordinateGenerator } from './coordinate-generator.js';
 
-/**
- * Runs the drone generation loop: generate coordinates → persist the drone.
- *
- * The loop is a chain of `setTimeout`s, not `setInterval`: the next tick is
- * scheduled only after the current one finishes, so ticks never overlap even
- * if the database is slow. The delay subtracts the tick's own duration, so
- * drones are still created about every `SIMULATION_INTERVAL_MS`.
- */
+
 @Injectable()
 export class DroneSimulationService
   implements OnApplicationBootstrap, OnModuleDestroy
@@ -51,7 +44,6 @@ export class DroneSimulationService
 
   async onModuleDestroy(): Promise<void> {
     this.stop();
-    // Let an in-flight save finish before the database connection closes.
     await this.currentTick;
   }
 
@@ -95,8 +87,6 @@ export class DroneSimulationService
         `Drone ${drone.id} created at (${drone.latitude}, ${drone.longitude})`,
       );
     } catch (error) {
-      // One failed tick (e.g. the database is briefly unreachable) must not
-      // stop the simulation: log it and try again on the next tick.
       this.logger.error(
         'Failed to create drone',
         error instanceof Error ? error.stack : String(error),

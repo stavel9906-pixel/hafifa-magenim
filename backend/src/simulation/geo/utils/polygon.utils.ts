@@ -1,31 +1,6 @@
-import type { Coordinates } from '../../drones/types/coordinates.js';
+import type { Coordinates } from '../../../drones/types/coordinates.js';
+import type { BoundingBox, LinearRing, Polygon } from '../types/polygon.js';
 
-/** A `[longitude, latitude]` pair — GeoJSON axis order. */
-export type Position = readonly [longitude: number, latitude: number];
-
-/** A closed ring: the first and last positions are equal. */
-export type LinearRing = readonly Position[];
-
-/**
- * A polygon with optional holes, following GeoJSON `Polygon` semantics:
- * a point is inside when it is inside the outer ring and in none of the holes.
- */
-export interface Polygon {
-  readonly outer: LinearRing;
-  readonly holes: readonly LinearRing[];
-}
-
-export interface BoundingBox {
-  readonly minLongitude: number;
-  readonly maxLongitude: number;
-  readonly minLatitude: number;
-  readonly maxLatitude: number;
-}
-
-/**
- * Ray-casting test: casts a ray east from the point and counts how many ring
- * edges it crosses. An odd count means the point is inside.
- */
 export function isInsideRing(
   { latitude, longitude }: Coordinates,
   ring: LinearRing,

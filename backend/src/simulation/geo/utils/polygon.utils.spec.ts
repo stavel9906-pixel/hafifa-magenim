@@ -1,10 +1,9 @@
+import type { LinearRing, Polygon } from '../types/polygon.js';
 import {
   boundingBoxOf,
   isInsidePolygon,
   isInsideRing,
-  type LinearRing,
-  type Polygon,
-} from './polygon.js';
+} from './polygon.utils.js';
 
 // 10×10 square with a 2×2 hole in the middle.
 const square: LinearRing = [

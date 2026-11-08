@@ -1,5 +1,6 @@
 import { ISRAEL_LAND_AREA } from './israel-land-area.js';
-import { isInsidePolygon, type LinearRing } from './polygon.js';
+import type { LinearRing } from './types/polygon.js';
+import { isInsidePolygon } from './utils/polygon.utils.js';
 
 const at = (latitude: number, longitude: number) => ({ latitude, longitude });
 
