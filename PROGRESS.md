@@ -3,11 +3,11 @@
 Status legend:
 - `[x]` done and verified · `[~]` implemented, not yet tested · `[ ]` pending · `[!]` blocked
 
-**Overall completion: ~5%** (Phase 0 of 9 complete, pending approval)
+**Overall completion: ~12%** (Phase 0 complete; Phase 1 in progress)
 
 ---
 
-## Phase 0 — Inspection and Planning ✅ (awaiting approval)
+## Phase 0 — Inspection and Planning ✅
 
 ### Environment inspection (2026-11-08)
 
@@ -147,15 +147,30 @@ isn't worth it for this size.
 
 ## Implementation checklist
 
-### Phase 1 — Project Setup
-- [ ] Create `develop` branch
+### Phase 1 — Project Setup (in progress)
+- [x] Create `develop` branch
 - [x] PostgreSQL running (native install, verified in Phase 0)
-- [ ] Create `drone_simulation` database
-- [ ] Scaffold NestJS backend (strict TS, ESLint, Prettier)
-- [ ] Scaffold Vite React TS frontend (strict TS, ESLint)
-- [ ] `@nestjs/config` + env validation; `.env.example` for both apps
-- [ ] TypeORM connection to PostgreSQL
-- [ ] Verify both apps start and the DB connects
+- [x] Scaffold NestJS 12 backend (ESM, strict TS, oxlint, Prettier, Vitest) — typecheck/lint/build pass
+- [x] Scaffold Vite 8 + React 19 frontend (strict TS, oxlint) — typecheck/lint/build pass,
+      dev server renders in the browser with no console errors
+- [x] Env validation: backend Zod schema via `@nestjs/config` (6 unit tests),
+      frontend validated `VITE_API_URL`; `.env.example` in both apps
+- [~] TypeORM connection to PostgreSQL + `GET /api/health` (unit tested with a mocked
+      DataSource; not yet run against the real database)
+- [~] `npm run db:create` script — written, not yet run
+- [!] Create `drone_simulation` database — **blocked: needs `DB_PASSWORD` in `backend/.env`**
+- [ ] Verify backend starts and the DB connects (`/api/health`, e2e test)
+
+Phase 1 notes:
+- **npm 10.8.2 bug:** `npm install` crashes (`Cannot read properties of null (reading 'edgesOut')`)
+  while resolving Vite 8 peer deps. Lockfiles were generated with `npx npm@11 install`;
+  plain `npm ci` with npm 10 works from them. Recommended: upgrade to npm 11 (`npm i -g npm@11`).
+- **Node version:** Nest CLI tooling (`@angular-devkit/*`) requires Node ≥ 22.22.3; installed
+  is 22.17.1. Only an engine warning so far; upgrading Node 22 LTS is recommended.
+- NestJS CLI now generates ESM + Vitest + oxlint (not CommonJS + Jest + ESLint);
+  kept the modern defaults. `@nestjs/mau` (paid cloud deploy) and generated `AGENTS.md` removed.
+- Added `tsx` (dev) to run TypeScript scripts in ESM; Phase 2's migration CLI uses it too.
+- Root `.gitattributes` (`eol=lf`) to stop CRLF/LF churn on Windows.
 
 ### Phase 2 — Backend Architecture and Database
 - [ ] `Drone` entity with constraints and index
