@@ -20,7 +20,6 @@ export class Drone {
   @Column({ type: 'double precision' })
   longitude: number;
 
-  /** Used to return the drone history in creation order. */
   @Index('IDX_drones_created_at')
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Drone } from './drone.entity.js';
+import { Drone } from './types/drone.entity.js';
 import { DronesService } from './drones.service.js';
 
 describe('DronesService', () => {

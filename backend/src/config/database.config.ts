@@ -1,6 +1,6 @@
 import type { DataSourceOptions } from 'typeorm';
 import { migrations } from '../database/migrations/index.js';
-import { Drone } from '../drones/drone.entity.js';
+import { Drone } from '../drones/types/drone.entity.js';
 import type { Env } from './env.schema.js';
 
 type DatabaseEnv = Pick<

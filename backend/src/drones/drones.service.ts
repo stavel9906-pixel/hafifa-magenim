@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { Coordinates } from './coordinates.js';
-import { Drone } from './drone.entity.js';
+import type { Coordinates } from './types/coordinates.js';
+import { Drone } from './types/drone.entity.js';
 
-/** Persistence of drones. Database errors propagate to the caller. */
 @Injectable()
 export class DronesService {
   constructor(

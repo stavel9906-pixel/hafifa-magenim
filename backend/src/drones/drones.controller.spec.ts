@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import type { Drone } from './drone.entity.js';
+import type { Drone } from './types/drone.entity.js';
 import { DronesController } from './drones.controller.js';
 import { DronesService } from './drones.service.js';
 

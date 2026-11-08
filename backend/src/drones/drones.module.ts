@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Drone } from './drone.entity.js';
+import { Drone } from './types/drone.entity.js';
 import { DronesController } from './drones.controller.js';
 import { DronesService } from './drones.service.js';
 
