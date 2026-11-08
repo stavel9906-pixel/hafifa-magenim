@@ -18,13 +18,13 @@ Status legend:
 | pnpm | 10.33.0 | Available, not needed — npm is used |
 | Git | 2.50.1 | Repo on `main`, 1 commit (`.gitignore`), no remote |
 | Docker | 28.5.2 | Installed, **daemon not running** |
-| PostgreSQL | **not installed** | No `psql`, no Windows service, nothing on port 5432 |
+| PostgreSQL | 17.11 (installed during Phase 0) | Windows service `postgresql-x64-17`, port 5432 |
 
 Existing files: only `.gitignore`. No conflicts.
 
 ### Open decisions
 
-1. **[!] How to run PostgreSQL** — blocks Phase 1 DB verification.
+1. **[x] How to run PostgreSQL** — resolved.
    - pgAdmin 4 is installed with two saved servers (checked 2026-11-08):
      - `localhost:5434` (user `postgres`) — **not reachable**. No PostgreSQL server exists on this
        machine: no Windows service, no `pg_ctl.exe` on disk, no WSL distribution.
@@ -35,7 +35,10 @@ Existing files: only `.gitignore`. No conflicts.
      (`winget install --id PostgreSQL.PostgreSQL.17 --interactive`, port 5432). The user runs the
      installer and chooses the `postgres` password; it lives only in the local `backend/.env`.
      The project uses its own `drone_simulation` database.
-   - **Status: waiting for the user to finish installing.**
+   - **Status: [x] installed and verified (2026-11-08)** — service `postgresql-x64-17` running
+     (automatic start), `psql (PostgreSQL) 17.11`, `pg_isready`: `localhost:5432 - accepting
+     connections`. Binaries in `C:\Program Files\PostgreSQL\17\bin` (not on `PATH`).
+     The `drone_simulation` database is created in Phase 1.
 2. **Generation area** — default: a simplified land polygon of Israel
    (Mediterranean, Dead Sea, Sea of Galilee and Gulf of Eilat excluded). Can be swapped for a
    different polygon by replacing one GeoJSON file.
@@ -146,7 +149,8 @@ isn't worth it for this size.
 
 ### Phase 1 — Project Setup
 - [ ] Create `develop` branch
-- [ ] PostgreSQL running (per decision 1)
+- [x] PostgreSQL running (native install, verified in Phase 0)
+- [ ] Create `drone_simulation` database
 - [ ] Scaffold NestJS backend (strict TS, ESLint, Prettier)
 - [ ] Scaffold Vite React TS frontend (strict TS, ESLint)
 - [ ] `@nestjs/config` + env validation; `.env.example` for both apps
