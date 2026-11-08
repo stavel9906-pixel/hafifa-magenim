@@ -11,7 +11,7 @@ describe('envSchema', () => {
   it('applies defaults and converts numeric strings to numbers', () => {
     const env = envSchema.parse({ ...validEnv, DB_PORT: '5433' });
 
-    expect(env.PORT).toBe(3000);
+    expect(env.PORT).toBe(3001);
     expect(env.DB_PORT).toBe(5433);
     expect(env.NODE_ENV).toBe('development');
   });

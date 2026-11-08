@@ -3,7 +3,7 @@
 Status legend:
 - `[x]` done and verified · `[~]` implemented, not yet tested · `[ ]` pending · `[!]` blocked
 
-**Overall completion: ~12%** (Phase 0 complete; Phase 1 in progress)
+**Overall completion: ~15%** (Phases 0–1 complete; Phase 1 awaiting approval)
 
 ---
 
@@ -147,21 +147,23 @@ isn't worth it for this size.
 
 ## Implementation checklist
 
-### Phase 1 — Project Setup (in progress)
+### Phase 1 — Project Setup ✅ (awaiting approval)
 - [x] Create `develop` branch
 - [x] PostgreSQL running (native install, verified in Phase 0)
 - [x] Scaffold NestJS 12 backend (ESM, strict TS, oxlint, Prettier, Vitest) — typecheck/lint/build pass
 - [x] Scaffold Vite 8 + React 19 frontend (strict TS, oxlint) — typecheck/lint/build pass,
       dev server renders in the browser with no console errors
-- [x] Env validation: backend Zod schema via `@nestjs/config` (6 unit tests),
-      frontend validated `VITE_API_URL`; `.env.example` in both apps
-- [~] TypeORM connection to PostgreSQL + `GET /api/health` (unit tested with a mocked
-      DataSource; not yet run against the real database)
-- [~] `npm run db:create` script — written, not yet run
-- [!] Create `drone_simulation` database — **blocked: needs `DB_PASSWORD` in `backend/.env`**
-- [ ] Verify backend starts and the DB connects (`/api/health`, e2e test)
+- [x] Env validation: backend Zod schema via `@nestjs/config` (unit tested; verified the app
+      refuses to start with `PORT=abc`), frontend validated `VITE_API_URL`; `.env.example` in both apps
+- [x] `npm run db:create` — created `drone_simulation`; second run reports "already exists"
+- [x] TypeORM connection to PostgreSQL — backend starts, `GET /api/health` →
+      `200 {"status":"ok","database":"up"}`; unknown route → Nest JSON 404
+- [x] Tests: 10 unit tests pass (env schema, health controller incl. DB-down → 503);
+      1 e2e test passes against the real database; Prettier check clean
 
 Phase 1 notes:
+- **Port 3000 is taken** on this machine by another project (`RefuaDataApi`), so the backend
+  defaults to **3001** (`PORT` in `backend/.env`; frontend `VITE_API_URL` matches).
 - **npm 10.8.2 bug:** `npm install` crashes (`Cannot read properties of null (reading 'edgesOut')`)
   while resolving Vite 8 peer deps. Lockfiles were generated with `npx npm@11 install`;
   plain `npm ci` with npm 10 works from them. Recommended: upgrade to npm 11 (`npm i -g npm@11`).
