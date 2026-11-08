@@ -25,9 +25,17 @@ Existing files: only `.gitignore`. No conflicts.
 ### Open decisions
 
 1. **[!] How to run PostgreSQL** — blocks Phase 1 DB verification.
-   - **Recommended:** `docker-compose.yml` at repo root running `postgres:17`
-     (requires starting Docker Desktop). Reproducible, one command, nothing installed system-wide.
-   - Alternative: install PostgreSQL 17 natively for Windows.
+   - pgAdmin 4 is installed with two saved servers (checked 2026-11-08):
+     - `localhost:5434` (user `postgres`) — **not reachable**. No PostgreSQL server exists on this
+       machine: no Windows service, no `pg_ctl.exe` on disk, no WSL distribution.
+     - `devDb` at `51.84.169.201:5434` — **not reachable** from this machine (VPN/firewall?).
+       A shared remote server.
+   - Docker is ruled out (user decision).
+   - **Decision (user):** install PostgreSQL 17 natively on Windows
+     (`winget install --id PostgreSQL.PostgreSQL.17 --interactive`, port 5432). The user runs the
+     installer and chooses the `postgres` password; it lives only in the local `backend/.env`.
+     The project uses its own `drone_simulation` database.
+   - **Status: waiting for the user to finish installing.**
 2. **Generation area** — default: a simplified land polygon of Israel
    (Mediterranean, Dead Sea, Sea of Galilee and Gulf of Eilat excluded). Can be swapped for a
    different polygon by replacing one GeoJSON file.
