@@ -3,7 +3,7 @@
 Status legend:
 - `[x]` done and verified · `[~]` implemented, not yet tested · `[ ]` pending · `[!]` blocked
 
-**Overall completion: ~15%** (Phases 0–1 complete; Phase 1 awaiting approval)
+**Overall completion: ~25%** (Phases 0–2 complete; Phase 2 awaiting approval)
 
 ---
 
@@ -147,7 +147,7 @@ isn't worth it for this size.
 
 ## Implementation checklist
 
-### Phase 1 — Project Setup ✅ (awaiting approval)
+### Phase 1 — Project Setup ✅
 - [x] Create `develop` branch
 - [x] PostgreSQL running (native install, verified in Phase 0)
 - [x] Scaffold NestJS 12 backend (ESM, strict TS, oxlint, Prettier, Vitest) — typecheck/lint/build pass
@@ -174,12 +174,33 @@ Phase 1 notes:
 - Added `tsx` (dev) to run TypeScript scripts in ESM; Phase 2's migration CLI uses it too.
 - Root `.gitattributes` (`eol=lf`) to stop CRLF/LF churn on Windows.
 
-### Phase 2 — Backend Architecture and Database
-- [ ] `Drone` entity with constraints and index
-- [ ] TypeORM data source + migration scripts; initial migration
-- [ ] `DronesService` (repository access)
-- [ ] `GET /api/drones` + response DTO
-- [ ] Unit tests; verify persistence
+### Phase 2 — Backend Architecture and Database ✅ (awaiting approval)
+- [x] `Drone` entity → `drones` table: `id uuid` PK (`gen_random_uuid()`), `latitude`/`longitude`
+      `double precision NOT NULL`, `created_at timestamptz NOT NULL DEFAULT now()`;
+      `CHK_drones_latitude_range`, `CHK_drones_longitude_range`, index `IDX_drones_created_at`.
+      Verified in PostgreSQL via `information_schema` / `pg_constraint` / `pg_indexes`.
+- [x] CLI data source (`src/database/data-source.ts`) sharing `buildDataSourceOptions` with the app;
+      scripts `migration:generate|run|revert|show`
+- [x] Initial migration `CreateDronesTable` generated, run, reverted and re-run successfully
+- [x] `DronesService` (`findAll` oldest-first, `create`) on the TypeORM repository
+- [x] `GET /api/drones` → `DroneDto[]` (`id`, `latitude`, `longitude`, `createdAt` ISO string)
+- [x] Unit tests: 15 pass (service, controller, env schema, health)
+- [x] E2E tests: 8 pass against a separate `drone_simulation_test` database (auto-created and
+      migrated by Vitest global setup): health, empty list, ordering + DTO shape, UUID v4 uniqueness,
+      CHECK constraints reject out-of-range coordinates. Dev database untouched (0 rows after run).
+- [x] Persistence across restart: inserted a row, read it via `/api/drones` from server A,
+      stopped A, started a new server B (different PID) → same row returned. Test row removed.
+
+Phase 2 notes:
+- `uuidExtension: 'pgcrypto'` + `installExtensions: false`: UUIDs come from PostgreSQL's
+  built-in `gen_random_uuid()` and TypeORM never runs `CREATE EXTENSION` (needs elevated rights).
+- Migrations are registered explicitly in `src/database/migrations/index.ts` instead of a file glob,
+  so they load identically from compiled JS, `tsx` (CLI) and Vitest. New migrations must be added there.
+- Migrations are run explicitly (`npm run migration:run`), not automatically on app start.
+- `configureApp()` (`src/app.setup.ts`) holds the `/api` prefix + shutdown hooks for both
+  `main.ts` and the e2e tests.
+- Found during verification: a backend started with `npm run start` at 15:35 is still running the
+  Phase 1 build on port 3001 (no `/api/drones`), and must be restarted to pick up Phase 2.
 
 ### Phase 3 — Drone Generation
 - [ ] Israel land polygon + point-in-polygon (unit tested)

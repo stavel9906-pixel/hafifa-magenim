@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { buildDataSourceOptions } from './config/database.config.js';
 import { envSchema, type Env } from './config/env.schema.js';
+import { DronesModule } from './drones/drones.module.js';
 import { HealthModule } from './health/health.module.js';
 
 @Module({
@@ -24,6 +25,7 @@ import { HealthModule } from './health/health.module.js';
         }),
     }),
     HealthModule,
+    DronesModule,
   ],
 })
 export class AppModule {}

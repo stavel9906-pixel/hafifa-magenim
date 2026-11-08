@@ -1,4 +1,6 @@
 import type { DataSourceOptions } from 'typeorm';
+import { migrations } from '../database/migrations/index.js';
+import { Drone } from '../drones/drone.entity.js';
 import type { Env } from './env.schema.js';
 
 type DatabaseEnv = Pick<
@@ -21,7 +23,11 @@ export function buildDataSourceOptions(env: DatabaseEnv): DataSourceOptions {
     password: env.DB_PASSWORD,
     database: env.DB_NAME,
     synchronize: false,
-    entities: [],
-    migrations: [],
+    // Use PostgreSQL's built-in gen_random_uuid() (PG 13+) for UUID defaults,
+    // and never run CREATE EXTENSION on connect (needs elevated privileges).
+    uuidExtension: 'pgcrypto',
+    installExtensions: false,
+    entities: [Drone],
+    migrations,
   };
 }

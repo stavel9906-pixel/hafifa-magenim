@@ -1,13 +1,12 @@
 /**
  * Creates the application database (DB_NAME) if it does not exist yet.
- * Connects to the built-in `postgres` maintenance database to do so.
  *
  * Usage: npm run db:create
  */
-import pg from 'pg';
 import { envSchema } from '../src/config/env.schema.js';
+import { ensureDatabaseExists } from '../src/database/ensure-database.js';
 
-async function createDatabase(): Promise<void> {
+async function main(): Promise<void> {
   try {
     process.loadEnvFile('.env');
   } catch {
@@ -15,35 +14,15 @@ async function createDatabase(): Promise<void> {
   }
   const env = envSchema.parse(process.env);
 
-  const client = new pg.Client({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    user: env.DB_USERNAME,
-    password: env.DB_PASSWORD,
-    database: 'postgres',
-  });
-
-  await client.connect();
-  try {
-    const { rowCount } = await client.query(
-      'SELECT 1 FROM pg_database WHERE datname = $1',
-      [env.DB_NAME],
-    );
-    if (rowCount) {
-      console.log(`Database "${env.DB_NAME}" already exists.`);
-      return;
-    }
-    // Identifiers can't be bound as query parameters, so escape explicitly.
-    await client.query(
-      `CREATE DATABASE ${client.escapeIdentifier(env.DB_NAME)}`,
-    );
-    console.log(`Database "${env.DB_NAME}" created.`);
-  } finally {
-    await client.end();
-  }
+  const created = await ensureDatabaseExists(env);
+  console.log(
+    created
+      ? `Database "${env.DB_NAME}" created.`
+      : `Database "${env.DB_NAME}" already exists.`,
+  );
 }
 
-createDatabase().catch((error: unknown) => {
+main().catch((error: unknown) => {
   console.error(
     'Failed to create database:',
     error instanceof Error ? error.message : error,
