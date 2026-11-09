@@ -50,6 +50,7 @@ export function useDrones(): UseDronesResult {
       }
     },
     onDrone: (drone) => dispatch({ type: 'droneReceived', drone }),
+    onDronesRemoved: (ids) => dispatch({ type: 'dronesRemoved', ids }),
   });
 
   const drones = useMemo(

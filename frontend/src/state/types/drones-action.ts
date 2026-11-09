@@ -4,4 +4,5 @@ export type DronesAction =
   | { type: 'loadStarted' }
   | { type: 'loadSucceeded'; drones: readonly Drone[] }
   | { type: 'loadFailed'; error: string }
-  | { type: 'droneReceived'; drone: Drone };
+  | { type: 'droneReceived'; drone: Drone }
+  | { type: 'dronesRemoved'; ids: readonly string[] };

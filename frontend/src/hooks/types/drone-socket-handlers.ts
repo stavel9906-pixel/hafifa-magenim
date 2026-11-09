@@ -4,4 +4,5 @@ export interface DroneSocketHandlers {
   onConnect: () => void;
   onConnectError: () => void;
   onDrone: (drone: Drone) => void;
+  onDronesRemoved: (ids: string[]) => void;
 }

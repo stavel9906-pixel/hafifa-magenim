@@ -19,6 +19,7 @@ export class DroneSimulationService
   private readonly logger = new Logger(DroneSimulationService.name);
   private readonly intervalMs: number;
   private readonly enabled: boolean;
+  private readonly maxDrones: number;
 
   private running = false;
   private timer: NodeJS.Timeout | undefined;
@@ -32,10 +33,12 @@ export class DroneSimulationService
   ) {
     this.intervalMs = config.get('SIMULATION_INTERVAL_MS', { infer: true });
     this.enabled = config.get('SIMULATION_ENABLED', { infer: true });
+    this.maxDrones = config.get('DRONES_MAX_COUNT', { infer: true });
   }
 
-  onApplicationBootstrap(): void {
+  async onApplicationBootstrap(): Promise<void> {
     if (this.enabled) {
+      await this.removeOldDrones();
       this.start();
     } else {
       this.logger.log(
@@ -89,6 +92,7 @@ export class DroneSimulationService
         `Drone ${drone.id} created at (${drone.latitude}, ${drone.longitude})`,
       );
       this.broadcast(drone);
+      await this.removeOldDrones();
     } catch (error) {
       this.logger.error(
         'Failed to create drone',
@@ -105,6 +109,29 @@ export class DroneSimulationService
   private createDrone(): Promise<Drone> {
     const coordinates = this.coordinateGenerator.generate();
     return this.dronesService.create(coordinates);
+  }
+
+  private async removeOldDrones(): Promise<void> {
+    let ids: string[];
+    try {
+      ids = await this.dronesService.deleteAllButNewest(this.maxDrones);
+    } catch (error) {
+      this.logger.error(
+        'Failed to remove old drones',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return;
+    }
+    if (ids.length === 0) return;
+    this.logger.debug(`Removed ${ids.length} old drone(s)`);
+    try {
+      this.dronesGateway.broadcastDronesRemoved(ids);
+    } catch (error) {
+      this.logger.error(
+        'Old drones were removed but could not be broadcast',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   private broadcast(drone: Drone): void {

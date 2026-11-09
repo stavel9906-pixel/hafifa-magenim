@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import type { DroneDto } from '../drones/dto/drone.dto.js';
-import { DRONE_CREATED_EVENT } from './drone-events.js';
+import { DRONE_CREATED_EVENT, DRONES_REMOVED_EVENT } from './drone-events.js';
 
 @WebSocketGateway()
 export class DronesGateway
@@ -44,6 +44,10 @@ export class DronesGateway
 
   broadcastDroneCreated(drone: DroneDto): void {
     this.server.emit(DRONE_CREATED_EVENT, drone);
+  }
+
+  broadcastDronesRemoved(ids: string[]): void {
+    this.server.emit(DRONES_REMOVED_EVENT, { ids });
   }
 
   private connectedClients(): number {

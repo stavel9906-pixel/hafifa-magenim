@@ -1,0 +1,34 @@
+logLevel: info
+logDestinations: [stdout]
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+        path: camera
+
+api: false
+metrics: false
+pprof: false
+playback: false
+rtsp: false
+rtmp: false
+hls: false
+srt: false
+moq: false
+
+webrtc: true
+webrtcAddress: 127.0.0.1:8889
+webrtcAllowOrigins: []
+webrtcLocalUDPAddress: :8189
+
+paths:
+  camera:
+    source: rtsp://set-by-backend
+    sourceOnDemand: true
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+    rtspTransport: tcp

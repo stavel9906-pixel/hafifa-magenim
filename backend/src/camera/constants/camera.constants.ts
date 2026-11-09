@@ -1,0 +1,11 @@
+export const MEDIAMTX_CONFIG_FILE = 'mediamtx/mediamtx.yml';
+export const MEDIAMTX_PATH_NAME = 'camera';
+export const MEDIAMTX_RESTART_DELAY_MS = 3000;
+export const MAX_SDP_BYTES = 64 * 1024;
+export const MEDIAMTX_SPAWN = Symbol('MEDIAMTX_SPAWN');
+export const CAMERA_CONFIG = Symbol('CAMERA_CONFIG');
+export const ONVIF_PTZ_PATH = '/onvif/ptz';
+export const ONVIF_PROFILE_TOKEN = 'MainStream';
+export const PTZ_SPEED = 0.5;
+export const PTZ_AUTO_STOP_MS = 1500;
+export const ONVIF_TIMEOUT_MS = 5000;
