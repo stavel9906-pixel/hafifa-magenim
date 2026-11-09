@@ -32,7 +32,7 @@ with no gaps and no duplicates.
 │          ▼ (only after the save succeeds)                               │
 │  DronesGateway.broadcastDroneCreated() ──► Socket.IO  "drone:created"   │
 │                                                                         │
-│  DronesController   GET /api/drones   (full history, oldest first)      │
+│  DronesController   GET /api/drones   (newest 20, oldest first)         │
 │  HealthController   GET /api/health   (checks the DB with SELECT 1)     │
 └─────────────────────────────────────────────────────────────────────────┘
              ▲ REST (history)                     ▲ WebSocket (live)
@@ -70,25 +70,32 @@ coordinate generator) · `health`.
 │   │   ├── realtime/      drones.gateway.ts, socket-io.adapter.ts, drone-events.ts
 │   │   ├── simulation/    drone-simulation.service.ts, coordinate-generator.ts,
 │   │   │                  geo/ (israel-land-area.ts, types/, utils/)
-│   │   └── health/
-│   └── test/              e2e specs + global setup (separate test database)
+│   │   ├── health/
+│   │   └── camera/        MediaMTX process, WHEP proxy, ONVIF PTZ, utils/, types/, constants/
+│   ├── mediamtx/          mediamtx.yml (no secrets)
+│   └── test/
+│       ├── unit/          *.spec.ts, same folders as src/
+│       └── *.e2e-spec.ts  e2e specs + global setup (separate test database)
 └── frontend/
     ├── .env.example
-    └── src/
-        ├── main.tsx, App.tsx, theme.ts
-        ├── config/        env.ts (validated VITE_* vars)
-        ├── api/           http-client, drones.api, api-error, validators/
-        ├── realtime/      drone-socket.ts, drone-events.ts, types/
-        ├── hooks/         useDroneSocket, useDrones, types/
-        ├── state/         drones.reducer.ts, types/, constants/
-        ├── map/           components/DroneMap, mappers/, constants/, config/, utils/, assets/
-        ├── components/    layout, badges, loading/error/empty states
-        ├── pages/         DronesPage
-        ├── types/, utils/ (merge-drones)
-        └── test/          setup, render helper, fake socket
+    ├── src/
+    │   ├── main.tsx, App.tsx, theme.ts
+    │   ├── config/        env.ts (validated VITE_* vars)
+    │   ├── api/           http-client, drones.api, camera.api, api-error, validators/
+    │   ├── realtime/      drone-socket.ts, drone-events.ts, types/
+    │   ├── hooks/         useDroneSocket, useDrones, camera hooks, types/
+    │   ├── state/         drones.reducer.ts, types/, constants/
+    │   ├── map/           components/DroneMap, mappers/, constants/, config/, utils/, assets/
+    │   ├── camera/        CameraPanel, CameraPtzControls, constants/, types/, utils/
+    │   ├── components/    layout, badges, loading/error/empty states
+    │   ├── pages/         DronesPage
+    │   └── types/, utils/ (merge, reconcile, remove drones)
+    └── test/              *.test.ts(x), same folders as src/
+        └── support/       setup, render helper, fake socket
 ```
 
-Unit tests sit next to the file they test (`*.spec.ts` in the backend, `*.test.ts(x)` in the frontend).
+Tests live in each app's `test/` folder and mirror the `src/` layout (`*.spec.ts` in the backend,
+`*.test.ts(x)` in the frontend).
 
 ---
 
@@ -137,6 +144,14 @@ never commit real credentials.
 | `DB_NAME` | — | Database name, e.g. `drone_simulation` |
 | `SIMULATION_ENABLED` | `true` | Set `false` to serve the API without generating drones |
 | `SIMULATION_INTERVAL_MS` | `5000` | Time between drones (minimum 100) |
+| `DRONES_MAX_COUNT` | `20` | Only the newest N drones are kept; older ones are deleted |
+| `CAMERA_HOST` | — | IP camera address, e.g. `10.0.10.72`. Empty = camera disabled |
+| `CAMERA_RTSP_PORT` | `554` | Camera RTSP port |
+| `CAMERA_STREAM_PATH` | `stream1` | RTSP path: `stream1` = sub-stream 720×480, `stream0` = main 2560×1440 |
+| `CAMERA_USERNAME` | `''` | Camera login |
+| `CAMERA_PASSWORD` | `''` | Camera password |
+| `MEDIAMTX_PATH` | `mediamtx` | MediaMTX executable; use a full path if it is not on `PATH` |
+| `MEDIAMTX_WEBRTC_PORT` | `8889` | Local WebRTC/WHEP port of MediaMTX (bound to 127.0.0.1) |
 
 The backend validates these at startup with Zod and refuses to start with a clear message if one is
 missing or invalid.
@@ -209,8 +224,13 @@ Other options: `npm run start` (no watch), or `npm run build` then `npm run star
 
 It listens on `http://localhost:3001/api`:
 
-- `GET /api/drones` — all drones, oldest first: `[{ id, latitude, longitude, createdAt }]`
+- `GET /api/drones` — the kept drones (newest `DRONES_MAX_COUNT`), oldest first: `[{ id, latitude, longitude, createdAt }]`
 - `GET /api/health` — `{ "status": "ok", "database": "up" }`, or 503 when the DB is unreachable
+- `GET /api/camera` — `{ "enabled": true | false }`
+- `POST /api/camera/whep` — WebRTC (WHEP) handshake: send an SDP offer (`application/sdp`), get the SDP answer (201) and a session `Location`
+- `DELETE /api/camera/whep/:sessionId` — close a viewer session
+- `POST /api/camera/ptz/move/left` · `POST /api/camera/ptz/move/right` — start panning (204)
+- `POST /api/camera/ptz/stop` — stop moving (204)
 
 ### Frontend
 
@@ -245,6 +265,45 @@ Production build: `npm run build`, then `npm run preview` (serves on 4173; add
      logged separately; the drone is already saved, and clients get it on their next load.
    - **Clean shutdown:** on shutdown the loop stops and waits for the save in progress, so nothing is
      written after the app closes.
+4. **Only the newest 20.** After each drone is broadcast, every drone except the newest
+   `DRONES_MAX_COUNT` (default 20) is deleted, and their ids are broadcast as `drones:removed`. The
+   same trim runs once at startup, so an existing larger table shrinks immediately.
+
+---
+
+## How the camera stream works
+
+Browsers cannot play RTSP, so the camera goes through **MediaMTX** (formerly rtsp-simple-server), a
+small media server that reads RTSP and serves the same H.264 video over **WebRTC**. Nothing is
+re-encoded, so it is full frame rate with ~0.2 s delay.
+
+```
+camera ──RTSP──► MediaMTX ──WebRTC video (UDP 8189)──► browser <video>
+                    ▲                                        │
+                    └── SDP offer/answer ◄── backend POST /api/camera/whep
+```
+
+1. **Install once:** `winget install bluenviron.mediamtx`, then open a new terminal so it is on
+   `PATH` (or set `MEDIAMTX_PATH` to the full path of `mediamtx.exe`).
+2. **Process.** When `CAMERA_HOST` is set, the backend starts MediaMTX on boot with
+   `backend/mediamtx/mediamtx.yml` and passes the RTSP source (with the credentials from `.env`)
+   through environment variables, so no secret is stored in the YAML. It restarts MediaMTX if it
+   exits and stops it on shutdown. Passwords are masked in the logs.
+3. **On demand.** MediaMTX connects to the camera only while someone is watching, and disconnects
+   10 s after the last viewer leaves.
+4. **Handshake.** The browser creates a receive-only `RTCPeerConnection` and posts its SDP offer to
+   `POST /api/camera/whep`. The backend forwards it to MediaMTX (which listens only on 127.0.0.1) and
+   returns the answer. The video then flows directly from MediaMTX to the browser over UDP port
+   8189, so that port must be reachable from viewers' machines.
+5. **Frontend.** `CameraPanel` (bottom-left over the map) plays the stream in a `<video>`. It is
+   hidden when `GET /api/camera` says the camera is disabled. *Hide* closes the session; *Try again*
+   reconnects after an error.
+6. **Pan left / right.** Once the video is live, two arrow buttons appear on its sides. Holding one
+   sends `POST /api/camera/ptz/move/:direction` (repeated every second while held), and releasing it
+   sends `stop`. The backend turns these into ONVIF `ContinuousMove` / `Stop` commands
+   (`http://CAMERA_HOST/onvif/ptz`, WS-Security digest login with the camera credentials). As a
+   safety net, the backend stops the camera by itself if no move arrives for 1.5 s, so a closed tab
+   or dropped connection never leaves it turning.
 
 ---
 
@@ -252,8 +311,10 @@ Production build: `npm run build`, then `npm run preview` (serves on 4173; add
 
 - Socket.IO runs on the same port as the REST API. A small custom adapter (`SocketIoAdapter`) applies
   the same `CORS_ORIGINS` list to WebSocket connections.
-- There is one event, **`drone:created`**, sent from the server to every connected client with the same
-  shape as the REST items: `{ id, latitude, longitude, createdAt }`.
+- **`drone:created`** is sent to every connected client with the same shape as the REST items:
+  `{ id, latitude, longitude, createdAt }`.
+- **`drones:removed`** `{ ids: string[] }` is sent when old drones are deleted to keep only the newest
+  `DRONES_MAX_COUNT`; clients remove them from the map.
 - The server emits it **only after** the drone is committed to the database. So any drone a client
   receives is already visible to `GET /api/drones`.
 - The client validates every event payload and every REST response. A malformed event is ignored; a
@@ -275,8 +336,9 @@ The frontend avoids both:
    event is lost while the history request is in flight.
 2. **Fetch on every connect.** `GET /api/drones` runs on each `connect`, including every *re*connect.
    Drones created while the client was offline are recovered from the database.
-3. **Merge by id.** Drones live in a `Map` keyed by `id`. The REST result and socket events are merged
-   into it, so a drone that arrives both ways is stored once, and arrival order doesn't matter.
+3. **Merge by id.** Drones live in a `Map` keyed by `id`, so a drone that arrives both ways is stored
+   once, and arrival order doesn't matter. A REST result is the source of truth: drones it no longer
+   contains are dropped, except ones that arrived by socket after that snapshot.
 4. **Newer request wins.** A new load aborts the previous one (`AbortController`), so a slow old
    response can't overwrite a newer one.
 5. **REST fallback.** If the socket can't connect at all, the history is still loaded once over REST so
@@ -343,6 +405,5 @@ the page states.
 
 - Broadcasts reach only clients of the same backend instance. Running several instances would need a
   shared adapter (e.g. Redis).
-- `GET /api/drones` returns the full history with no paging; fine for this project's scale.
 - The frontend has no request timeout for a server that accepts the connection but never answers.
 - The production bundle is ~389 KB gzipped, mostly MapLibre.

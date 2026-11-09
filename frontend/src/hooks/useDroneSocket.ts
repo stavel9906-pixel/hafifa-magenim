@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { isDrone } from '../api/validators/drone.validator';
-import { DRONE_CREATED_EVENT } from '../realtime/drone-events';
+import { parseRemovedDroneIds } from '../api/validators/drones-removed.validator';
+import {
+  DRONE_CREATED_EVENT,
+  DRONES_REMOVED_EVENT,
+} from '../realtime/drone-events';
 import { createDroneSocket } from '../realtime/drone-socket';
 import type { ConnectionStatus } from '../realtime/types/connection-status';
 import type { DroneSocketHandlers } from './types/drone-socket-handlers';
@@ -38,6 +42,15 @@ export function useDroneSocket(handlers: DroneSocketHandlers): ConnectionStatus 
         handlersRef.current.onDrone(payload);
       } else {
         console.warn('Ignoring malformed drone event', payload);
+      }
+    });
+
+    socket.on(DRONES_REMOVED_EVENT, (payload: unknown) => {
+      const ids = parseRemovedDroneIds(payload);
+      if (ids) {
+        handlersRef.current.onDronesRemoved(ids);
+      } else {
+        console.warn('Ignoring malformed drones removed event', payload);
       }
     });
 

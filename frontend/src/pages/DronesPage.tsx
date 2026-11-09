@@ -1,4 +1,5 @@
 import { Box, Group } from '@mantine/core';
+import { CameraPanel } from '../camera/components/CameraPanel';
 import { AppLayout } from '../components/AppLayout';
 import { ConnectionBadge } from '../components/ConnectionBadge';
 import { DroneCountBadge } from '../components/DroneCountBadge';
@@ -23,6 +24,7 @@ export function DronesPage() {
       <Box pos="relative" h="100%">
         <DroneMap drones={state.drones} />
         <DronesStatus state={state} onRetry={reload} />
+        <CameraPanel />
       </Box>
     </AppLayout>
   );

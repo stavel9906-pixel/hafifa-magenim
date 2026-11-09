@@ -7,7 +7,7 @@
   },
   "overrides": [
     {
-      "files": ["src/test/**"],
+      "files": ["test/support/**"],
       "rules": { "react/only-export-components": "off" }
     }
   ]

@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ['./test/support/setup.ts'],
     env: {
       VITE_API_URL: 'http://api.test/api',
       VITE_MAP_STYLE_URL: 'http://tiles.test/style.json',
