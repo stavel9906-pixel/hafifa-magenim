@@ -14,4 +14,6 @@ function requireUrl(name: keyof ImportMetaEnv): string {
 /** Validated frontend configuration. Fails fast at startup if misconfigured. */
 export const env = {
   apiUrl: requireUrl('VITE_API_URL'),
+  mapStyleUrl: requireUrl('VITE_MAP_STYLE_URL'),
+  socketUrl: requireUrl('VITE_SOCKET_URL'),
 } as const;

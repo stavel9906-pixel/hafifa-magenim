@@ -3,7 +3,7 @@
 Status legend:
 - `[x]` done and verified · `[~]` implemented, not yet tested · `[ ]` pending · `[!]` blocked
 
-**Overall completion: ~45%** (Phases 0–4 complete; Phase 4 awaiting approval)
+**Overall completion: ~97%** (all phases done; left: visual map check, and committing Phases 5–9)
 
 ---
 
@@ -231,7 +231,7 @@ Phase 3 notes:
 - The dev database now contains 10 drones generated during the live check (kept as real history).
 - No `@nestjs/schedule`: a plain `setTimeout` chain gives the no-overlap guarantee directly.
 
-### Phase 4 — WebSocket ✅ (awaiting approval)
+### Phase 4 — WebSocket ✅
 - [x] Socket.IO via `@nestjs/platform-socket.io` 12 (socket.io 4.8); `DronesGateway` in
       `src/realtime/`, event name `drone:created`, payload = `DroneDto` (same shape as REST)
 - [x] `CORS_ORIGINS` (comma-separated, validated URLs, default `http://localhost:5173`) applied to
@@ -255,28 +255,131 @@ Phase 4 notes:
 - Socket.IO does not reject WebSocket connections by origin (CORS is a browser rule for HTTP);
   the origin list is enforced for browser polling/REST requests.
 
-### Phase 5 — Frontend and Mantine
-- [ ] Mantine provider, theme, app layout
-- [ ] Typed API client for `GET /api/drones`
-- [ ] Loading / empty / error states
+### Phase 5 — Frontend and Mantine ✅ (not committed, per user request)
+- [x] Mantine 9.7 (`@mantine/core`, `@mantine/hooks`) + `postcss-preset-mantine`;
+      `MantineProvider` with theme (`src/theme.ts`), color scheme follows the OS
+- [x] `AppLayout` (AppShell header with title and drone count badge)
+- [x] Typed API client: `getJson` (network / HTTP / invalid-JSON errors → readable `ApiError`,
+      aborts passed through), `fetchDrones` with runtime shape validation (`isDrone`)
+- [x] `useDrones` hook: loading → success | error, `reload()`, aborts the request on unmount
+- [x] States: `LoadingState`, `ErrorState` (message + "Try again"), Mantine `EmptyState`,
+      `DroneList` (newest 100, newest first)
+- [x] Frontend tests (Vitest 5 + jsdom + Testing Library): 18 pass — API client, hook, page states
+- [x] Typecheck, lint, production build pass
+- [x] Browser (real backend on 3002, Vite on 5175): list of 18 drones + count, no console errors;
+      backend stopped → loader, then "Could not reach the server…" error; backend restarted →
+      "Try again" loads 21 drones. Network log shows StrictMode's first request aborted (cleanup works).
+- Not live-tested: the empty state (dev DB is not empty) — covered by a unit test.
 
-### Phase 6 — MapLibre
-- [ ] Map centered on Israel at a suitable zoom
-- [ ] Drone icon, GeoJSON source + symbol layer
-- [ ] Render loaded drones; verify positions and lng/lat order
+Phase 5 notes:
+- The table is a temporary main view; Phase 6 puts the map in the main area.
+- A refused `localhost` connection takes a few seconds to fail on Windows, so the loader shows
+  briefly before the error. No request timeout is set; a hung (not refused) server keeps loading.
 
-### Phase 7 — Real-Time Integration
-- [ ] Socket client with reconnection; listener cleanup
-- [ ] `useDrones`: Map-based dedupe, refetch on reconnect
-- [ ] Connection status indicator
-- [ ] Verify refresh/multi-tab: nothing missing or duplicated
+### Phase 6 — MapLibre (implemented and unit-tested; visual check pending — not committed)
+- [~] Map opens on Israel via `bounds` + `fitBoundsOptions` (fits any viewport); zoom controls;
+      style from `VITE_MAP_STYLE_URL` (OpenFreeMap, keyless). Options verified by unit test;
+      **not yet visually confirmed** (Claude's browser pane was hidden, which pauses map rendering).
+- [~] Quadcopter SVG icon; all drones in one GeoJSON source + symbol layer (scales to thousands);
+      updates via `setData`, never a new map; `map.remove()` on unmount. Unit-tested with a fake map.
+- [x] `[longitude, latitude]` order in one mapper (`map/mappers/drone-feature.mapper.ts`), unit-tested.
+- [x] Fixed: MapLibre 6's worker failed to load under Vite (it resolves the worker relative to its
+      own file). Now bundled by Vite (`?worker&url`, `worker.format: 'es'`) and set via
+      `setWorkerUrl`; dev network log shows the bundled worker loading; build emits it separately.
+- [x] Frontend reorganized: `map/{components,config,constants,mappers,types,utils,assets}`,
+      `api/validators`, `DronesStatus` / `DroneCountBadge` components.
+- Tests: 31 frontend tests pass; typecheck, lint, build pass.
+- Note: production bundle ~389 KB gzip, mostly MapLibre (build warns > 500 KB minified).
 
-### Phase 8 — Testing and QA
-- [ ] Backend unit + e2e tests (Jest)
-- [ ] Frontend tests (Vitest + Testing Library) for dedupe/merge logic
-- [ ] Lint + type-check both apps
-- [ ] Manual QA of every scenario in the spec
+### Phase 7 — Real-Time Integration ✅ (not committed)
+- [x] `socket.io-client` 4.8, `VITE_SOCKET_URL`; `realtime/` (socket factory, event name,
+      `ConnectionStatus` type); `useDroneSocket` owns the socket: status, auto-reconnect with
+      backoff (1–10 s), manual reconnect after a server-initiated disconnect, payloads validated
+      with `isDrone`, all listeners removed + socket closed on unmount
+- [x] Sync design (no lost / duplicated drones):
+      1. listener registered before the connection completes;
+      2. REST history loaded on **every** `connect` (first + each reconnect) → anything saved before
+         the load is in REST, anything after arrives by socket;
+      3. both merged by `id` (`utils/merge-drones.ts`, pure, returns the same Map when nothing is
+         new → no re-render);
+      4. socket can't connect → history still loads over REST (once, not on every retry)
+- [x] State in a pure reducer (`state/drones.reducer.ts`): no loading flash when refreshing data
+      already shown; data kept if a later load fails; superseded loads aborted
+- [x] `ConnectionBadge` in the header: Connecting… / Live / Reconnecting…
+- [x] Tests: 53 frontend tests pass (merge, reducer, socket hook, `useDrones` race scenarios:
+      drone arriving during the REST load, duplicate events, reconnect catch-up, REST fallback,
+      abort on unmount). Typecheck, lint, build pass.
+- [x] Live (user's servers 5173 / 3001): no refresh, page went 695 → 700 = API 700; after refresh in
+      2 tabs both show 704 = API 704 (704 unique ids)
+- [x] Live reconnect (test backend 3002 with generator off, Vite 5175): backend killed →
+      "Reconnecting…", drones stay on screen; backend restarted → auto-reconnect, history reloaded
+      712 → 720 (every drone created during the outage recovered)
+- Found and fixed: a second `connect_error` before the first REST load finished started a
+  duplicate load → fallback now skips while a load is in flight.
+- Limitation (documented, out of scope): broadcasts are per backend instance; several instances
+  would need a shared Socket.IO adapter (e.g. Redis). Seen in the test above: a drone created by
+  the other instance after the reconnect reached the page only on the next reload.
+- Still pending from Phase 6: visual check of the map (Claude's browser pane is hidden).
 
-### Phase 9 — Documentation
-- [ ] README (setup, env, migrations, run, architecture, decisions, tests)
-- [ ] Final review
+### Phase 8 — Testing and QA (one item pending: visual map check — not committed)
+
+Automated (2026-11-08):
+
+| Suite | Result |
+|---|---|
+| Backend typecheck / oxlint / Prettier / build | ✅ clean |
+| Backend unit (Vitest) | ✅ 83 / 83 |
+| Backend e2e vs. PostgreSQL test DB | ✅ 12 / 12 (new: graceful shutdown while generating) |
+| Frontend typecheck / oxlint / build | ✅ clean |
+| Frontend tests (Vitest + Testing Library) | ✅ 53 / 53 |
+| `npm audit --omit=dev` (both) | ✅ 0 vulnerabilities |
+
+New test: closing the app mid-generation finishes cleanly, logs no errors and writes nothing after
+close. Mutation-checked: removing `stop()` from shutdown makes it fail.
+
+Manual QA against the spec (backend on 3002, frontend **production build** via `vite preview`):
+
+| Scenario | Result |
+|---|---|
+| Backend starts | ✅ routes mapped, health `{"status":"ok","database":"up"}` |
+| Frontend starts (dev + production build) | ✅ |
+| PostgreSQL connection | ✅ |
+| New drone every 5 s | ✅ server log 18:03:07 / :12 / :17 / :22 |
+| Every drone persisted | ✅ 4 / 4 logged ids found in DB |
+| Records survive restart | ✅ 4 / 4 found after restart under a new PID |
+| Initial history loads | ✅ page count = API count right after load |
+| New drones arrive via WebSocket | ✅ page +3 in a window where the server created exactly 3 |
+| Refresh preserves history, no dupes | ✅ (Phase 7: 2 tabs = 704 = API, 704 unique ids) |
+| Multiple browser clients | ✅ 2 tabs live simultaneously, both auto-reconnect after server restart |
+| WebSocket disconnects | ✅ Reconnecting… → Live, missed drones recovered (Phase 7) |
+| No duplicate markers | ✅ Map keyed by id; unit + live checks |
+| Production MapLibre worker | ✅ bundled worker loads, no console errors captured |
+| Connection leaks | ✅ 10 rapid reloads: every socket paired with a disconnect; settles at 2 for 2 tabs |
+| Map centered on Israel, markers on land | ⏳ **pending** — needs a visual check (browser pane hidden) |
+
+Found and fixed in Phase 8:
+- Gateway's "N connected" log used `engine.clientsCount`, which counts half-finished handshakes and
+  includes the socket that is leaving. Now counts namespace sockets (`server.sockets.sockets.size`),
+  which Socket.IO updates before the connect/disconnect events — verified exact live (2 → 1 → 2 → 2).
+
+Known limitations (documented, not bugs for this scope):
+- Broadcasts are per backend instance (multi-instance would need a shared adapter, e.g. Redis).
+- No request timeout on the frontend REST call (a hung — not refused — server keeps the loader).
+- Frontend bundle ~389 KB gzip, mostly MapLibre.
+- Graceful shutdown verified via `app.close()` in e2e, not by pressing Ctrl+C in a terminal.
+
+### Phase 9 — Documentation and Final Review
+- [x] Root `README.md` covering every item in the spec: overview, technologies, architecture diagram,
+      folder structure, prerequisites, installation, env vars (both apps), PostgreSQL setup,
+      migrations, running backend/frontend, drone generation, WebSocket, initial load + sync, testing,
+      key decisions, known limitations
+- [x] README facts checked against the code (env schema defaults, scripts, endpoints, test names);
+      land hit ratio measured (~35% of bounding-box samples, 200k samples)
+- [x] README commands checked: `db:create`, `migration:show` run as described
+- [x] Final full check: backend typecheck / oxlint / Prettier / build clean, 83 / 83 unit,
+      12 / 12 e2e; frontend typecheck / oxlint / build clean, 53 / 53 tests
+- [ ] Visual check of the map (centered on Israel, markers on land) — still not done by me
+- [ ] Phases 5–9 not committed (per instruction "dont commit")
+
+Housekeeping during Phase 9: the dev `drones` table was emptied on request (12,985 rows); the interval
+was briefly set to 60 s and then restored to 5 s.

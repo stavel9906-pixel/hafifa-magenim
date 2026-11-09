@@ -47,6 +47,6 @@ export class DronesGateway
   }
 
   private connectedClients(): number {
-    return this.server.engine.clientsCount;
+    return this.server.sockets.sockets.size;
   }
 }

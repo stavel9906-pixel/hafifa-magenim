@@ -9,7 +9,13 @@ describe('DronesGateway', () => {
   const engineOn = vi.fn();
   const server = {
     emit,
-    engine: { on: engineOn, clientsCount: 2 },
+    engine: { on: engineOn },
+    sockets: {
+      sockets: new Map([
+        ['a', {}],
+        ['b', {}],
+      ]),
+    },
   } as unknown as Server;
   const client = { id: 'client-1' } as Socket;
   let gateway: DronesGateway;
